@@ -9,13 +9,14 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
-
+import { useNavigate } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import SearchIcon from '@mui/icons-material/Search';
 import MicIcon from '@mui/icons-material/Mic';
 import AddIcon from '@mui/icons-material/Add';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+
 
 const lightTheme = createTheme({
   palette: {
@@ -32,6 +33,7 @@ interface YouTubeAppBarLightProps {
 }
 
 export default function YouTubeAppBarLight({ onMenuClick }: YouTubeAppBarLightProps) {
+  const navigate = useNavigate();
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline />
@@ -53,7 +55,9 @@ export default function YouTubeAppBarLight({ onMenuClick }: YouTubeAppBarLightPr
               <MenuIcon />
             </IconButton>
 
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+            <Box
+              onClick={() => navigate('/')}
+              sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, cursor: 'pointer' }}>
               <YouTubeIcon sx={{ color: '#ff0000', fontSize: 28, mt: 0.3 }} />
               <Typography
                 variant="h6"

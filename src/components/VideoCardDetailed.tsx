@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardMedia,
@@ -29,10 +30,12 @@ export default function VideoCardDetailed({
   hasCaptions = false,
   isVerified = true,
 }: VideoCardDetailedProps) {
+  const navigate = useNavigate();
   const { title, thumbnail, channelTitle, channelThumbnail, duration, views, postedAt } = video;
 
   return (
     <Card
+      onClick={() => navigate(`/watch/${video.id}`)}
       elevation={0}
       sx={{
         cursor: 'pointer',

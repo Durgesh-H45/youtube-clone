@@ -12,16 +12,15 @@ function formatDuration(isoDuration: string): string {
   return `${minutes}:${pad(seconds)}`;
 }
 
-function formatViews(viewCount: string): string {
-  const num = parseInt(viewCount, 10);
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M views`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K views`;
-  return `${num} views`;
+function formatCount(count: string): string {
+  const num = parseInt(count, 10);
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return `${num}`;
 }
 
 function formatPostedAt(publishedAt: string): string {
-  const published = new Date(publishedAt).getTime();
-  const seconds = Math.floor((Date.now() - published) / 1000);
+  const seconds = Math.floor((Date.now() - new Date(publishedAt).getTime()) / 1000);
   const units: [number, string][] = [
     [60 * 60 * 24 * 365, 'year'],
     [60 * 60 * 24 * 30, 'month'],
@@ -36,49 +35,90 @@ function formatPostedAt(publishedAt: string): string {
   return 'just now';
 }
 
-export async function getVideos(query: string): Promise<Video[]> {
-  // Step 1: search for videos matching the query
-  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q=${query}&key=${API_KEY}`;
+async function getChannelAvatars(channelIds: string[]): Promise<Record<string, string>> {
+  const uniqueIds = [...new Set(channelIds)].join(',');
+  const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${uniqueIds}&key=${API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  const map: Record<string, string> = {};
+  data.items.forEach((channel: any) => {
+    map[channel.id] = channel.snippet.thumbnails.default.url;
+  });
+  return map;
+}
+
+interface GetVideosResult {
+  videos: Video[];
+  nextPageToken: string | null;
+}
+
+// Search-based feed — now paginated, so it can be called again with
+// the returned nextPageToken to load more results (infinite scroll).
+export async function getVideos(
+  query: string,
+  pageToken: string = ''
+): Promise<GetVideosResult> {
+  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(
+    query
+  )}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${API_KEY}`;
+
   const searchRes = await fetch(searchUrl);
   const searchData = await searchRes.json();
 
   const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',');
 
-  // Step 2: fetch real duration + view count for those video IDs
   const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${API_KEY}`;
   const detailsRes = await fetch(detailsUrl);
   const detailsData = await detailsRes.json();
 
-  // Step 3: fetch channel avatars for the unique channels in these results
-  const uniqueChannelIds = [
-    ...new Set(searchData.items.map((item: any) => item.snippet.channelId)),
-  ].join(',');
+  const channelAvatarMap = await getChannelAvatars(
+    searchData.items.map((item: any) => item.snippet.channelId)
+  );
 
-  const channelsUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${uniqueChannelIds}&key=${API_KEY}`;
-  const channelsRes = await fetch(channelsUrl);
-  const channelsData = await channelsRes.json();
-
-  // Build a quick lookup: channelId -> avatar URL
-  const channelAvatarMap: Record<string, string> = {};
-  channelsData.items.forEach((channel: any) => {
-    channelAvatarMap[channel.id] = channel.snippet.thumbnails.default.url;
-  });
-
-  // Merge everything together
   const videos: Video[] = searchData.items.map((item: any) => {
     const details = detailsData.items.find((d: any) => d.id === item.id.videoId);
-
     return {
       id: item.id.videoId,
       title: item.snippet.title,
-      thumbnail: item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high.url,
+      description: item.snippet.description,
+      thumbnail: item.snippet.thumbnails.high.url,
+      channelId: item.snippet.channelId,
       channelTitle: item.snippet.channelTitle,
       channelThumbnail: channelAvatarMap[item.snippet.channelId] || '',
       duration: details ? formatDuration(details.contentDetails.duration) : '',
-      views: details ? formatViews(details.statistics.viewCount) : '',
+      views: details ? `${formatCount(details.statistics.viewCount)} views` : '',
+      likes: details ? formatCount(details.statistics.likeCount || '0') : '',
       postedAt: formatPostedAt(item.snippet.publishedAt),
     };
   });
 
-  return videos;
+  return {
+    videos,
+    nextPageToken: searchData.nextPageToken || null,
+  };
+}
+
+// Single video, by ID — for the watch/detail page
+export async function getVideoById(videoId: string): Promise<Video> {
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const item = data.items[0];
+
+  const channelAvatarMap = await getChannelAvatars([item.snippet.channelId]);
+
+  return {
+    id: item.id,
+    title: item.snippet.title,
+    description: item.snippet.description,
+    thumbnail: item.snippet.thumbnails.high.url,
+    channelId: item.snippet.channelId,
+    channelTitle: item.snippet.channelTitle,
+    channelThumbnail: channelAvatarMap[item.snippet.channelId] || '',
+    duration: formatDuration(item.contentDetails.duration),
+    views: `${formatCount(item.statistics.viewCount)} views`,
+    likes: formatCount(item.statistics.likeCount || '0'),
+    postedAt: formatPostedAt(item.snippet.publishedAt),
+  };
 }

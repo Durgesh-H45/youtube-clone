@@ -108,7 +108,6 @@ function CollapsedItem({ text, icon, selected }: NavItem) {
 
 interface YouTubeSidebarProps {
   open: boolean;
-  onClose: () => void;
 }
 
 export default function YouTubeSidebar({ open }: YouTubeSidebarProps) {
