@@ -5,6 +5,7 @@ import YouTubeAppBarLight from './components/appbar';
 import Drawer from './components/drawer';
 import VideoGrid from './components/videogrid';
 import VideoPlayerPage from './components/VideoPlayerPage';
+import ChannelPage from './components/ChannelPage';
 
 function App() {
   const [open, setOpen] = useState<boolean>(true);
@@ -19,6 +20,7 @@ function App() {
         <Routes>
           <Route path="/" element={<VideoGrid />} />
           <Route path="/watch/:videoId" element={<VideoPlayerPage />} />
+          <Route path="/channel/:channelId" element={<ChannelPage />} />
         </Routes>
       </Box>
     </Box>

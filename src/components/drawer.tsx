@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Drawer as MuiDrawer,
   Toolbar,
@@ -32,23 +33,25 @@ import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 
 const OPEN_WIDTH = 240;
 const CLOSED_WIDTH = 72;
+const MY_CHANNEL_ID = 'UCahCFTGXucpsDdzqsZDMqZQ';
 
 interface NavItem {
   text: string;
   icon: React.ReactElement;
   selected?: boolean;
+  path?: string;
 }
 
 const topNav: NavItem[] = [
-  { text: 'Home', icon: <HomeIcon />, selected: true },
+  { text: 'Home', icon: <HomeIcon />, selected: true, path: '/' },
   { text: 'Shorts', icon: <SlideshowOutlinedIcon /> },
   { text: 'Subscriptions', icon: <SubscriptionsOutlinedIcon /> },
 ];
 
-const youCollapsed: NavItem = { text: 'You', icon: <PersonOutlineIcon /> };
+const youCollapsed: NavItem = { text: 'You', icon: <PersonOutlineIcon />, path: `/channel/${MY_CHANNEL_ID}` };
 
 const youNav: NavItem[] = [
-  { text: 'Your channel', icon: <PersonOutlineIcon /> },
+  { text: 'Your channel', icon: <PersonOutlineIcon />, path: `/channel/${MY_CHANNEL_ID}` },
   { text: 'History', icon: <HistoryIcon /> },
   { text: 'Playlists', icon: <PlaylistPlayIcon /> },
   { text: 'Watch Later', icon: <WatchLaterOutlinedIcon /> },
@@ -75,10 +78,16 @@ const footerLinks: string[][] = [
 ];
 
 function NavList({ items }: { items: NavItem[] }) {
+  const navigate = useNavigate();
   return (
     <List disablePadding>
-      {items.map(({ text, icon, selected }) => (
-        <ListItemButton key={text} selected={selected} sx={{ borderRadius: 2, mx: 1, my: 0.2 }}>
+      {items.map(({ text, icon, selected, path }) => (
+        <ListItemButton
+          key={text}
+          selected={selected}
+          onClick={() => path && navigate(path)}
+          sx={{ borderRadius: 2, mx: 1, my: 0.2 }}
+        >
           <ListItemIcon sx={{ minWidth: 24, mr: 2 }}>{icon}</ListItemIcon>
           <ListItemText primary={text} slotProps={{ primary: { sx: { fontSize: 14 } } }} />
         </ListItemButton>
@@ -87,11 +96,12 @@ function NavList({ items }: { items: NavItem[] }) {
   );
 }
 
-// Collapsed rail item: icon on top, small label underneath, matching real YouTube
-function CollapsedItem({ text, icon, selected }: NavItem) {
+function CollapsedItem({ text, icon, selected, path }: NavItem) {
+  const navigate = useNavigate();
   return (
     <ListItemButton
       selected={selected}
+      onClick={() => path && navigate(path)}
       sx={{
         flexDirection: 'column',
         py: 1.5,
@@ -114,7 +124,7 @@ export default function YouTubeSidebar({ open }: YouTubeSidebarProps) {
   return (
     <MuiDrawer
       variant="persistent"
-      open={true} // always mounted; we control width instead, so it never fully vanishes
+      open={true}
       sx={{
         width: open ? OPEN_WIDTH : CLOSED_WIDTH,
         flexShrink: 0,

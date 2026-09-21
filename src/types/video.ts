@@ -11,3 +11,14 @@ export interface Video {
   likes: string;
   postedAt: string;
 }
+
+export interface Channel {
+  id: string;
+  title: string;
+  handle: string;
+  description: string;
+  avatar: string;
+  banner: string;
+  subscriberCount: string;
+  videoCount: string;
+}

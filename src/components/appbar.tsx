@@ -17,6 +17,7 @@ import MicIcon from '@mui/icons-material/Mic';
 import AddIcon from '@mui/icons-material/Add';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 
+const MY_CHANNEL_ID = 'UCahCFTGXucpsDdzqsZDMqZQ';
 
 const lightTheme = createTheme({
   palette: {
@@ -49,7 +50,6 @@ export default function YouTubeAppBarLight({ onMenuClick }: YouTubeAppBarLightPr
         }}
       >
         <Toolbar sx={{ justifyContent: 'space-between', gap: 2, px: 2 }}>
-          {/* Left: hamburger + logo */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
             <IconButton edge="start" sx={{ color: 'text.primary' }} onClick={onMenuClick}>
               <MenuIcon />
@@ -71,7 +71,6 @@ export default function YouTubeAppBarLight({ onMenuClick }: YouTubeAppBarLightPr
             </Box>
           </Box>
 
-          {/* Center: search bar */}
           <Box
             sx={{
               display: 'flex',
@@ -116,7 +115,6 @@ export default function YouTubeAppBarLight({ onMenuClick }: YouTubeAppBarLightPr
             </IconButton>
           </Box>
 
-          {/* Right: create button + notifications + avatar */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
             <Button
               startIcon={<AddIcon />}
@@ -138,7 +136,12 @@ export default function YouTubeAppBarLight({ onMenuClick }: YouTubeAppBarLightPr
               </Badge>
             </IconButton>
 
-            <Avatar sx={{ width: 32, height: 32, bgcolor: '#e65100', fontSize: 15 }}>D</Avatar>
+            <Avatar
+              onClick={() => navigate(`/channel/${MY_CHANNEL_ID}`)}
+              sx={{ width: 32, height: 32, bgcolor: '#e65100', fontSize: 15, cursor: 'pointer' }}
+            >
+              D
+            </Avatar>
           </Box>
         </Toolbar>
       </AppBar>

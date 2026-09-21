@@ -1,4 +1,4 @@
-import type { Video } from '../types/video';
+import type { Video, Channel } from '../types/video';
 
 const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
@@ -53,8 +53,6 @@ interface GetVideosResult {
   nextPageToken: string | null;
 }
 
-// Search-based feed — now paginated, so it can be called again with
-// the returned nextPageToken to load more results (infinite scroll).
 export async function getVideos(
   query: string,
   pageToken: string = ''
@@ -99,7 +97,6 @@ export async function getVideos(
   };
 }
 
-// Single video, by ID — for the watch/detail page
 export async function getVideoById(videoId: string): Promise<Video> {
   const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${API_KEY}`;
   const res = await fetch(url);
@@ -120,5 +117,109 @@ export async function getVideoById(videoId: string): Promise<Video> {
     views: `${formatCount(item.statistics.viewCount)} views`,
     likes: formatCount(item.statistics.likeCount || '0'),
     postedAt: formatPostedAt(item.snippet.publishedAt),
+  };
+}
+
+export async function getChannelDetails(channelId: string): Promise<Channel> {
+  const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,brandingSettings&id=${channelId}&key=${API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const item = data.items[0];
+
+  return {
+    id: item.id,
+    title: item.snippet.title,
+    handle: item.snippet.customUrl || '',
+    description: item.snippet.description,
+    avatar: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+    banner: item.brandingSettings?.image?.bannerExternalUrl || '',
+    subscriberCount: item.statistics.hiddenSubscriberCount
+      ? 'Hidden'
+      : formatCount(item.statistics.subscriberCount),
+    videoCount: formatCount(item.statistics.videoCount),
+  };
+}
+export async function getChannelVideos(
+  channelId: string,
+  pageToken: string = ''
+): Promise<GetVideosResult> {
+  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=12${pageToken ? `&pageToken=${pageToken}` : ''
+    }&key=${API_KEY}`;
+
+  const searchRes = await fetch(searchUrl);
+
+  if (!searchRes.ok) {
+    const errorText = await searchRes.text();
+    throw new Error(
+      `YouTube search API error ${searchRes.status}: ${errorText}`
+    );
+  }
+
+  const searchData = await searchRes.json();
+
+  if (!searchData.items) {
+    throw new Error('No video items returned from YouTube API');
+  }
+
+  const videoIds = searchData.items
+    .map((item: any) => item.id.videoId)
+    .filter(Boolean)
+    .join(',');
+
+  if (!videoIds) {
+    return {
+      videos: [],
+      nextPageToken: searchData.nextPageToken || null,
+    };
+  }
+
+  const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds}&key=${API_KEY}`;
+
+  const detailsRes = await fetch(detailsUrl);
+
+  if (!detailsRes.ok) {
+    const errorText = await detailsRes.text();
+    throw new Error(
+      `YouTube details API error ${detailsRes.status}: ${errorText}`
+    );
+  }
+
+  const detailsData = await detailsRes.json();
+
+  const channelAvatarMap = await getChannelAvatars(
+    searchData.items
+      .map((item: any) => item.snippet.channelId)
+      .filter(Boolean)
+  );
+
+  const videos: Video[] = searchData.items.map((item: any) => {
+    const details = detailsData.items?.find(
+      (d: any) => d.id === item.id.videoId
+    );
+
+    return {
+      id: item.id.videoId,
+      title: item.snippet.title,
+      description: item.snippet.description,
+      thumbnail: item.snippet.thumbnails.high.url,
+      channelId: item.snippet.channelId,
+      channelTitle: item.snippet.channelTitle,
+      channelThumbnail: channelAvatarMap[item.snippet.channelId] || '',
+      duration: details
+        ? formatDuration(details.contentDetails.duration)
+        : '',
+      views: details
+        ? `${formatCount(details.statistics.viewCount)} views`
+        : '',
+      likes: details
+        ? formatCount(details.statistics.likeCount || '0')
+        : '',
+      postedAt: formatPostedAt(item.snippet.publishedAt),
+    };
+  });
+
+  return {
+    videos,
+    nextPageToken: searchData.nextPageToken || null,
   };
 }
