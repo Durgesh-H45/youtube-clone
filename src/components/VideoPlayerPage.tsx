@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Box, Avatar, Button, IconButton, Grid, CircularProgress } from '@mui/material';
+import { useNavigate, useParams } from 'react-router-dom'; import { Box, Avatar, Button, IconButton, Grid, CircularProgress } from '@mui/material';
 import ThumbUpOutlinedIcon from '@mui/icons-material/ThumbUpOutlined';
 import ThumbDownOutlinedIcon from '@mui/icons-material/ThumbDownOutlined';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
@@ -11,6 +10,7 @@ import CommentsList from './CommentsList';
 
 export default function VideoPlayerPage() {
   const { videoId } = useParams<{ videoId: string }>();
+  const navigate = useNavigate();
   const [video, setVideo] = useState<Video | null>(null);
 
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
@@ -22,20 +22,27 @@ export default function VideoPlayerPage() {
   const loadMoreRelated = useCallback(
     async (searchTitle: string, token: string | null) => {
       if (loadingRelated) return;
+
       setLoadingRelated(true);
 
-      const result = await getVideos(searchTitle, token || '');
-      setRelatedVideos((prev) => [
-        ...prev,
-        ...result.videos.filter((v) => v.id !== videoId),
-      ]);
-      setNextPageToken(result.nextPageToken);
-      setLoadingRelated(false);
+      try {
+        const result = await getVideos(searchTitle, token || '');
+
+        setRelatedVideos((prev) => [
+          ...prev,
+          ...result.items.filter((v) => v.id !== videoId),
+        ]);
+
+        setNextPageToken(result.nextPageToken);
+      } catch (error) {
+        console.error('Error loading related videos:', error);
+      } finally {
+        setLoadingRelated(false);
+      }
     },
     [videoId, loadingRelated]
   );
 
-  // Load the video itself + first page of related videos when videoId changes
   useEffect(() => {
     if (!videoId) return;
 
@@ -43,10 +50,20 @@ export default function VideoPlayerPage() {
     setRelatedVideos([]);
     setNextPageToken(null);
 
-    getVideoById(videoId).then((data) => {
-      setVideo(data);
-      loadMoreRelated(data.title, null);
-    });
+    getVideoById(videoId)
+      .then((data) => {
+        if (!data) {
+          console.error('Video not found');
+          return;
+        }
+
+        setVideo(data);
+        loadMoreRelated(data.title, null);
+      })
+      .catch((error) => {
+        console.error('Error loading video:', error);
+      });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
 
@@ -88,10 +105,54 @@ export default function VideoPlayerPage() {
           <Box sx={{ fontSize: '1.25rem', fontWeight: 600, mt: 2 }}>{video.title}</Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5, flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar src={video.channelThumbnail} sx={{ width: 40, height: 40 }} />
-              <Box sx={{ fontWeight: 600 }}>{video.channelTitle}</Box>
-              <Button variant="contained" sx={{ ml: 2, bgcolor: '#0f0f0f', borderRadius: 5, textTransform: 'none' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              {/* Clickable channel avatar + name */}
+              <Box
+                onClick={() => navigate(`/channel/${video.channelId}`)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  cursor: 'pointer',
+                  borderRadius: 2,
+                  p: 0.5,
+                  '&:hover': {
+                    bgcolor: 'grey.100',
+                  },
+                }}
+              >
+                <Avatar
+                  src={video.channelThumbnail}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                  }}
+                />
+
+                <Box
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
+                  {video.channelTitle}
+                </Box>
+              </Box>
+
+              <Button
+                variant="contained"
+                sx={{
+                  ml: 2,
+                  bgcolor: '#0f0f0f',
+                  borderRadius: 5,
+                  textTransform: 'none',
+                }}
+              >
                 Subscribe
               </Button>
             </Box>

@@ -2,12 +2,11 @@ import type { Comment } from '../types/Comment';
 
 const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
-// Reuse the same relative-time formatter pattern as youtube.ts
 function formatPostedAt(publishedAt: string): string {
   const seconds = Math.floor((Date.now() - new Date(publishedAt).getTime()) / 1000);
   const units: [number, string][] = [
     [60 * 60 * 24 * 365, 'year'],
-    [60 * 60 * 24 * 30, 'month'],
+    [60 * 60 * 24 * 30, 'month'], 
     [60 * 60 * 24, 'day'],
     [60 * 60, 'hour'],
     [60, 'minute'],
